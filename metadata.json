@@ -1,0 +1,10 @@
+{
+  "name": "OpenZoom - Free Open Source Video Meetings",
+  "description": "Completely free and open-source video conferencing platform with HD audio/video, screen sharing, collaborative whiteboard, breakout rooms, live captions, and in-meeting chat.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "display-capture"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
