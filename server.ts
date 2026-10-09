@@ -2,6 +2,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 
@@ -450,10 +451,8 @@ wss.on('connection', (ws: WebSocket) => {
 app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',
-    name: 'OpenZoom',
+    name: 'OpenRoom',
     version: '1.0.0',
-    openSource: true,
-    license: 'MIT',
     activeRooms: rooms.size,
   });
 });
@@ -472,7 +471,12 @@ app.get('/api/rooms/:roomId', (req, res) => {
 
 // Setup Vite dev server middlewares or static dist serving
 async function startServer() {
-  const isDev = process.env.NODE_ENV !== 'production';
+  const distDir = path.resolve(__dirname, 'dist');
+  const indexHtmlPath = path.resolve(distDir, 'index.html');
+  const hasDist = fs.existsSync(indexHtmlPath);
+
+  // In production or if built dist exists, serve compiled static assets
+  const isDev = process.env.NODE_ENV !== 'production' && !hasDist;
 
   if (isDev) {
     const { createServer: createViteServer } = await import('vite');
@@ -482,14 +486,34 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    app.use(express.static(path.resolve(__dirname, 'dist')));
-    app.get('*', (_req, res) => {
-      res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
-    });
+    if (hasDist) {
+      app.use(express.static(distDir));
+      app.get('*', (_req, res) => {
+        res.sendFile(indexHtmlPath);
+      });
+    } else {
+      console.error('CRITICAL: dist/index.html not found! Ensure build command runs "npm run build".');
+      app.get('*', (_req, res) => {
+        res.status(404).send(`
+          <!DOCTYPE html>
+          <html>
+            <head><title>OpenRoom - Build Missing</title></head>
+            <body style="font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #0f172a; color: #f8fafc; text-align: center;">
+              <div style="max-width: 500px; padding: 24px; border: 1px solid #334155; border-radius: 12px; background: #1e293b;">
+                <h2 style="color: #f87171; margin-top: 0;">Frontend Build Not Found</h2>
+                <p style="color: #94a3b8; line-height: 1.6;">The web assets in <code>dist/</code> were not found.</p>
+                <p style="color: #94a3b8; line-height: 1.6;">Make sure your Render <strong>Build Command</strong> is:</p>
+                <code style="background: #0f172a; padding: 8px 12px; border-radius: 6px; display: inline-block; color: #38bdf8; font-size: 14px; margin-bottom: 16px;">npm install && npm run build</code>
+              </div>
+            </body>
+          </html>
+        `);
+      });
+    }
   }
 
   server.listen(port, () => {
-    console.log(`OpenZoom server listening on port ${port} (${isDev ? 'development' : 'production'})`);
+    console.log(`OpenRoom server listening on port ${port} (${isDev ? 'development' : 'production'})`);
   });
 }
 
